@@ -1,39 +1,293 @@
 <!---
-	Paste the following script into the CrateJoy header.html code to install Segment analytics.
-		This will install Segment's analytics.js and call any integration enabled on their platform.
-		Note, if you have separately added your Google Analytics tracking code to CrateJoy and have Google Analytics as
-			a segment integration service, you can comment out the GA script that is in the head.html and the index.html
+	Using the CrateJoy designer, go to the Code section.
+	Paste the following script into the CrateJoy head.html file to install Segment analytics.
+	Paste this after the </title> and before the <meta> sections.
+	This will install Segment's analytics.js and call any integration enabled on their platform.
+	Note, if you have separately added your Google Analytics tracking code to CrateJoy and have Google Analytics as
+		a segment integration service, comment out the GA script that CrateJoy inserts in the head.html and the index.html
 	This script will sync customer data if they are logged in. Otherwise, the site visitor will track anonymously.
 -->
 
 <script type="text/javascript">
-!function(){var analytics=window.analytics=window.analytics||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","group","track","ready","alias","page","once","off","on"];analytics.factory=function(t){return function(){var e=Array.prototype.slice.call(arguments);e.unshift(t);analytics.push(e);return analytics}};for(var t=0;t<analytics.methods.length;t++){var e=analytics.methods[t];analytics[e]=analytics.factory(e)}analytics.load=function(t){var e=document.createElement("script");e.type="text/javascript";e.async=!0;e.src=("https:"===document.location.protocol?"https://":"http://")+"cdn.segment.com/analytics.js/v1/"+t+"/analytics.min.js";var n=document.getElementsByTagName("script")[0];n.parentNode.insertBefore(e,n)};analytics.SNIPPET_VERSION="3.0.1";
-
-
-  window.analytics.load("YOUR_WRITE_KEY");
-
-  // identify the customer if they have an account
+  !function(){var analytics=window.analytics=window.analytics||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","page","once","off","on"];analytics.factory=function(t){return function(){var e=Array.prototype.slice.call(arguments);e.unshift(t);analytics.push(e);return analytics}};for(var t=0;t<analytics.methods.length;t++){var e=analytics.methods[t];analytics[e]=analytics.factory(e)}analytics.load=function(t){var e=document.createElement("script");e.type="text/javascript";e.async=!0;e.src=("https:"===document.location.protocol?"https://":"http://")+"cdn.segment.com/analytics.js/v1/"+t+"/analytics.min.js";var n=document.getElementsByTagName("script")[0];n.parentNode.insertBefore(e,n)};analytics.SNIPPET_VERSION="3.1.0";
+  
+  analytics.load("YOUR_SEGMENT_WRITE_KEY");
   {% if customer %}
-  window.analytics.identify('{{ customer.name }}', {
-    name: "{{ customer.name }}",
-    firstName: "{{ customer.first_name }}",
-    lastName: "{{ customer.last_name }}",
-    email: "{{ customer.email }}",
-    userId: "{{ customer.id }}",
-    
-  });
+  	window.analytics.identify('{{ customer.id }}', {
+  		name: "{{ customer.name }}",
+  		firstName: "{{ customer.first_name }}",
+  		lastName: "{{ customer.last_name }}",
+  		email: "{{ customer.email }}",
+  		userId: "{{ customer.id }}"
+  	});
   {% endif %}
   }}();
 </script>
 
 
+
+
 <!---
 	To get page names tracking correctly in Segment, paste this code on the top of each of your CrateJoy pages.
-		You will want to include the name of the page as you would like it tracked. ex: 'Home' 'About Us' 'Subscribe'
+	You will want to include the name of the page as you would like it tracked. ex: 'Home' 'About Us' 'How It Works'
+	Don't do this on the subscribe.html page, we'll set that one later. 
 -->
 
 <script type="text/javascript">
-  analytics.page('How It Works');
+	analytics.page('How It Works');
 </script>
 
 
+
+
+<!---
+	The above two steps will set up your analytics tracking for the Segment Identify spec.
+	For Segment's ecommerce spec, the steps are below. These are the tricky ones. :-)
+	We needed to obtain the CrateJoy item category (subscription vs gift) as well as create some Events. We started by adding this 		cookie script to the footer.
+-->
+
+<script type="text/javascript">
+	$(document).ready(function() {
+		$(".add_to_cart").click(function() {  
+			var termid=$(this).attr("id");
+			var termname=$(this).attr("name");
+			var termprice=$(this).attr("price");
+			var productname=$(this).attr("productname");
+			analytics.track('Added Product', {
+          			id:termid,
+          			sku:termid,
+          			quantity:"1",
+          			price:termprice,
+          			name:termname,
+          			{% if gift == true %}
+          				category:"Gift",
+          				{% else %}
+          				category:"Subscription",
+          			{% endif %}
+          		});
+          	});
+        });
+</script>
+
+
+
+
+<!---
+	Then open up the code for subscribe.html
+	Scroll towards the bottom and look for the {% elif stage =+ "Terms" %}  next you'll see two div classes.
+	Paste the following code between the <div class="headline-container"> and the <div class="headline copy">
+	This will set Segment's Ecommerce Spec to track the product category to Subscription or Gift.
+	The Viewed Checkout Steps are useful with Google Analytics and their enhanced ecommerce funnel tracking.
+-->
+
+<script type="text/javascript">
+	analytics.page('Term');
+	analytics.track('Viewed Checkout Step', { step: 1 });
+	$(document).ready(function() {
+		var pcategory = $(".subscribe_headline").text();
+	            if (window.location.href.indexOf("gift") > -1) {
+	   		analytics.track('Viewed Product Category', {
+	                  	category:"Gift",
+	                  	name:"{{ product.name }}",
+	                  	sku:"{{ product.id }}",
+	                  	id:"{{ product.id }}",
+	  			});
+	            } else if (pcategory='Subscribe for Yourself') {
+	            	analytics.track('Viewed Product Category', {
+	                  	category:"Subscription",
+	                  	name:"{{ product.name }}",
+	                  	sku:"{{ product.id }}",
+	                  	id:"{{ product.id }}",
+	  			});   
+	            } else {
+	            }
+
+	});
+</script>
+
+
+
+
+<!---
+	While still on the subscribe.html page, scroll up to the {% if stage == "product" %}
+	Paste this script right after <div class="headline-container"> and right before <div class="headline copy">
+	This will track an event for viewing the Subscribe page.
+-->
+
+<script type="text/javascript">
+	analytics.page('Subscribe');
+</script>
+	
+
+
+
+<!---
+	Next up for the Ecommerce Spec, open up your checkout.html in the code editor.
+	Towards the bottom, place this script between the {{ checkout.page() }}  and the {{ 'js/checkout.js' | asset_url | javascript_			tag }}.
+	This will track if they remove a product from their cart.
+-->
+
+<script type="text/javascript">
+	analytics.page('Checkout');
+	analytics.track('Completed Checkout Step', { step: 1 });
+	analytics.track('Viewed Checkout Step', { step: 2 });
+	$(document).ready(function() {
+		$(".rem_product_form").click(function() {
+			str = $(this).attr("id");
+			var str1 = str.substr(17);
+			pid = $("#prodid" + str1).val();
+			pname = $("#prodname" + str1).val();
+			termid = $("#termid" + str1).val();
+			term_name = $("#termname" + str1).val();
+			price = $("#prodprice" + str1).val();
+			var giftval = $('.gift_banner').text();
+        		if (giftval == "") {
+				analytics.track('Removed Product', {
+					sku:pid,
+        				id:termid,
+        				name: term_name,
+        				price: price,
+        				quantity:"1",
+        				category:"Subscription",
+        				});
+        			} else {
+        			analytics.track('Removed Product', {
+          				sku:pid,
+          				id:termid,
+          				name: term_name,
+          				price: price,
+          				quantity:"1",
+          				category:"Gift",
+        				});
+      				}
+    		});
+  	});
+</script>
+
+
+
+
+<!---
+	Now for your final trick, open up the thank_you.html page in the customer sub-folder.
+	At the top, right after the {% block page_content %} element, place this script.
+-->
+
+<script type="text/javascript">
+	analytics.page('Thank You');
+	analytics.track('Completed Checkout Step', { step: 2 });
+	analytics.track('Viewed Checkout Step', { step: 3 });
+	analytics.track('Completed Checkout Step', { step: 3 }); 
+</script>
+
+
+
+
+<!---
+	Still on the thank_you.html look for the few lines of CrateJoy customer_helper.order.page macros. 
+	Afer the final line of {{%- endmacro -%}} insert this script.
+-->
+
+<script type="text/javascript"> 
+  $(document).ready(function() {
+	$("#d").val(new Date());
+	analytics.track('Completed Order', {
+		orderId: "{{ order.id }}",
+		total: "{{order.total|currency}}",
+		revenue: "{{ order.total_price|currency }}",
+		shipping: "{{ order.total_shipping|currency }}",
+		tax: "{{ order.total_tax|currency }}",
+		currency: "USD",
+		products: [
+        		{% if order and (order.products) %}
+        			{% for p in order.products %}
+        			{
+        				id: "{{ p.instance.product.id  }}",
+        				name: "{{ p.subscription_type_term.name }}",
+        				price: "{{ p.price | currency  }}",
+        				quantity: "{{ p.quantity }}",
+        				category: "Subscription"
+              			},
+            			{% endfor %}
+          		{% endif %}
+        		{% if order and ( order.gifts) %}
+            			{% for g in order.gifts %}
+              			{
+              				id: "{{ g.instance.product.id  }}",
+                			name: "{{ g.subscription_type_term.name }}",
+                			price: "{{ g.price | currency  }}",
+                			quantity: "{{ g.quantity }}",
+                			category: "Gift"
+              			},
+            			{% endfor %}
+          		{% endif %}
+        	]
+    	});
+  });
+</script>
+
+
+
+
+<!---
+	And lastly, still on the thank_you.html page, right after the script above, paste this script.
+	This script creates a Segment Event for when a specific prouduct is purchased. You can use these Segment events to trigger 			specific Facebook Ad pixels, Google Adwords pixels, Intercom events, and so forth.
+	If you have given your CrateJoy subscription product terms unique names, you'll need to edit the script slightly. This assumes 		the default term names for your subscription product.
+-->
+
+<script type="text/javascript">
+	$(document).ready(function() {
+    	var subplan= $(".subscription-plan").text();
+	    var productname= $(".product-name").text();
+	    var planprice= $(".currency").text();
+	    var totalprice= $("#total_price").text();
+		if (subplan=="Month-To-Month Plan") { 
+      			analytics.track('Purchased Subscription - One Month', 
+      			{
+        			name:subplan,
+        			category: "Subscription",
+        			total:totalprice,   
+      			});
+    		} else if (subplan == "Month To Month Plan") { 
+      			analytics.track('Purchased Gift - One Month', 
+      			{
+        			name:subplan,
+        			category: "Gift",
+		 		total:totalprice,  
+	  		});
+    		} else if (subplan =="3 Months Plan") { 
+      			analytics.track('Purchased Subscription - Three Months', 
+      			{
+		  		name:subplan,
+        			category: "Subscription",
+        			total:totalprice,
+	   		});
+    		} else if(subplan=="3 Month Prepay Plan") { 
+      			analytics.track('Purchased Gift - Three Months', 
+      			{
+        			name:subplan,
+        			category: "Gift",
+        			total:totalprice,  
+      			});
+    		} else if(subplan=="6 Months Plan") { 
+      			analytics.track('Purchased Subscription - Six Months', 
+      			{
+		  		name:subplan,
+        			category: "Subscription",
+        			total:totalprice,
+      			});
+    		} else if(subplan=="6 Month Prepay Plan") { 
+      			analytics.track('Purchased Gift - Six Months', 
+      			{
+		  		name:subplan,
+        			category: "Gift",
+        			total:totalprice,
+      			});
+    		} else { 
+      			analytics.track('Purchased More Than One Item', 
+      			{
+		 		name:subplan,
+        			total:totalprice,
+      			});
+    		}
+	});
+</script>
